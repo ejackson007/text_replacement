@@ -1,7 +1,25 @@
+import sqlite3 as sl
+import os.path
 from pynput.keyboard import Key, Listener
 import pyautogui
 
-test_replacements = {"name": "Evan Jackson", "@@": "evanojackson@icloud.com"}
+if not os.path.exists("replacements.db"):
+    con = sl.connect("replacements.db")
+    sql = 'INSERT INTO REPLACEMENTS (short, replace) values (?, ?)'
+    data = [("name", "Evan Jackson"), ("@@", "evanojackson@icloud.com")]
+    with con:
+        con.execute("""
+            CREATE TABLE REPLACEMENTS (
+                short TEXT,
+                replace TEXT
+            );
+        """)
+        con.executemany(sql, data)
+
+macro_start = "#"
+macro_end = Key.space
+typed = []
+listening = False
 
 
 def on_press(key):
@@ -20,22 +38,22 @@ def on_press(key):
         if key_str != macro_start and len(key_str) == 1:
             typed.append(key_str)
 
-        print(typed)
+        #print(typed)
         if key == macro_end:
             candidate = ""
             candidate = candidate.join(typed)
             if candidate != "":
-                if candidate in test_replacements.keys():
+                con = sl.connect("replacements.db")
+                with con:
+                    replace = con.execute(
+                        f"SELECT replace FROM REPLACEMENTS WHERE short='{candidate}'"
+                    )
                     pyautogui.press('backspace', presses=len(candidate) +
                                     3)  # // + word + " "
-                    pyautogui.typewrite(test_replacements[candidate])
+                    #gets returned as a tuple, so we have to extract the first value
+                    pyautogui.typewrite([row[0] for row in replace][0])
                     listening = False
 
-
-macro_start = "#"
-macro_end = Key.space
-typed = []
-listening = False
 
 with Listener(on_press=on_press) as listener:
     listener.join()
